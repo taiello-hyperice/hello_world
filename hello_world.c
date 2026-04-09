@@ -12,15 +12,30 @@
 float current_temp = 0.0f;
 uint32_t current_free_memory = 0;
 
-static void blink_startup_for_ms(uint32_t duration_ms) {
-    // 2 second period: 1s on, 1s off
-    uint32_t elapsed = 0;
-    while (elapsed < duration_ms) {
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-        sleep_ms(1000);
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-        sleep_ms(1000);
-        elapsed += 2000;
+static int wifi_connect_with_blink(const char *ssid, const char *pw, uint32_t auth, uint32_t timeout_ms) {
+    int err = cyw43_arch_wifi_connect_async(ssid, pw, auth);
+    if (err) return err;
+
+    absolute_time_t timeout = make_timeout_time_ms(timeout_ms);
+    absolute_time_t next_toggle = make_timeout_time_ms(1000);
+    bool led_on = true;
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+
+    while (true) {
+        if (time_reached(timeout)) return PICO_ERROR_TIMEOUT;
+
+        cyw43_arch_poll();
+        sleep_ms(10);
+
+        int status = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
+        if (status == CYW43_LINK_UP) return 0;
+        if (status < 0) return status;
+
+        if (time_reached(next_toggle)) {
+            led_on = !led_on;
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_on);
+            next_toggle = delayed_by_ms(next_toggle, 1000);
+        }
     }
 }
 
@@ -140,16 +155,12 @@ int main()
     // Connect to Wi-Fi network
     cyw43_arch_enable_sta_mode();
 
-    // Blink at 2s period during startup
-    blink_startup_for_ms(2000);
-
     printf("Attempting to connect to Wi-Fi...\n");
 
-    int connection_result = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID_1, WIFI_PASS_1, CYW43_AUTH_WPA2_AES_PSK, 15000);
+    int connection_result = wifi_connect_with_blink(WIFI_SSID_1, WIFI_PASS_1, CYW43_AUTH_WPA2_AES_PSK, 15000);
     if (connection_result != 0) {
         printf("Office failed, trying home...\n");
-        blink_startup_for_ms(2000);
-        connection_result = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID_2, WIFI_PASS_2, CYW43_AUTH_WPA2_AES_PSK, 15000);
+        connection_result = wifi_connect_with_blink(WIFI_SSID_2, WIFI_PASS_2, CYW43_AUTH_WPA2_AES_PSK, 15000);
     }
     if (connection_result != 0) {
         printf("Wi-Fi connection failed: %d\n", connection_result);
