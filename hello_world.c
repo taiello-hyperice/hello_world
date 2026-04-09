@@ -12,6 +12,28 @@
 float current_temp = 0.0f;
 uint32_t current_free_memory = 0;
 
+static void blink_startup_for_ms(uint32_t duration_ms) {
+    // 2 second period: 1s on, 1s off
+    uint32_t elapsed = 0;
+    while (elapsed < duration_ms) {
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        sleep_ms(1000);
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        sleep_ms(1000);
+        elapsed += 2000;
+    }
+}
+
+static void blink_error_forever() {
+    // 0.5 second period: 250ms on, 250ms off
+    while (true) {
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        sleep_ms(250);
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        sleep_ms(250);
+    }
+}
+
 uint32_t get_free_memory() {
     extern char __StackLimit;
     register uint32_t stack_pointer __asm("sp");
@@ -24,13 +46,8 @@ float read_temperature() {
         float voltage = raw_reading*3.3f/4096.0f;
         float temperature =27.0f - (voltage - 0.706f) / 0.001721f;
         
-        // Turn on the LED if the temperature is an "even" number, otherwise turn it off
         int temp_int = (int)roundf(temperature * 100); // Multiply by 100 to consider two decimal places
         bool is_even = (temp_int % 2 == 0);
-        if (is_even)
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-        else
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
         printf("Temperature: %.2f\n", temperature);
         printf(is_even ? "(EVEN)\n" : "(ODD)\n");
@@ -98,12 +115,15 @@ static err_t connection_callback(void *arg, struct tcp_pcb *newpcb, err_t err) {
     return ERR_OK;
 }
 
-void start_http_server() {
+bool start_http_server() {
     struct tcp_pcb *pcb = tcp_new();
+    if (pcb == NULL) return false;
     tcp_bind(pcb, IP_ADDR_ANY, 80);
     pcb = tcp_listen(pcb);
+    if (pcb == NULL) return false;
     tcp_accept(pcb, connection_callback);
     printf("HTTP server started on port 80\n");
+    return true;
 }
 
 int main()
@@ -119,25 +139,34 @@ int main()
 
     // Connect to Wi-Fi network
     cyw43_arch_enable_sta_mode();
-    
-    sleep_ms(1000);
+
+    // Blink at 2s period during startup
+    blink_startup_for_ms(2000);
 
     printf("Attempting to connect to Wi-Fi...\n");
-    
+
     int connection_result = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID_1, WIFI_PASS_1, CYW43_AUTH_WPA2_AES_PSK, 15000);
     if (connection_result != 0) {
         printf("Office failed, trying home...\n");
+        blink_startup_for_ms(2000);
         connection_result = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID_2, WIFI_PASS_2, CYW43_AUTH_WPA2_AES_PSK, 15000);
     }
     if (connection_result != 0) {
         printf("Wi-Fi connection failed: %d\n", connection_result);
-        return -1;
+        blink_error_forever();
     }
+
     // Prints the IP address assigned to the device
     printf("Connected!\n");
     printf("IP Address: %s\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
 
-    start_http_server();
+    if (!start_http_server()) {
+        printf("HTTP server failed to start\n");
+        blink_error_forever();
+    }
+
+    // Connected and serving — LED solid on
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
     // Initialise the ADC, enable the internal temperature sensor, and select the correct input
     adc_init();
