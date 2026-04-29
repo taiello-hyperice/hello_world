@@ -28,36 +28,36 @@ set(PICO_BOARD pico_w CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(hello_world C CXX ASM)
+project(pico_w_temp_monitor C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(hello_world hello_world.c )
+add_executable(pico_w_temp_monitor pico_w_temp_monitor.c )
 
-pico_set_program_name(hello_world "hello_world")
-pico_set_program_version(hello_world "0.1")
+pico_set_program_name(pico_w_temp_monitor "pico-w-temp-monitor")
+pico_set_program_version(pico_w_temp_monitor "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(hello_world 0)
-pico_enable_stdio_usb(hello_world 1)
+pico_enable_stdio_uart(pico_w_temp_monitor 0)
+pico_enable_stdio_usb(pico_w_temp_monitor 1)
 
 # Add the standard library to the build
-target_link_libraries(hello_world
+target_link_libraries(pico_w_temp_monitor
         pico_stdlib)
 
 # Add the standard include files to the build
-target_include_directories(hello_world PRIVATE
+target_include_directories(pico_w_temp_monitor PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
 # Add any user requested libraries
-target_link_libraries(hello_world 
-        pico_cyw43_arch_lwip_poll        
+target_link_libraries(pico_w_temp_monitor
+        pico_cyw43_arch_lwip_poll
         hardware_adc
         )
 
-pico_add_extra_outputs(hello_world)
+pico_add_extra_outputs(pico_w_temp_monitor)
 

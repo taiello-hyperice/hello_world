@@ -8,7 +8,7 @@ A Raspberry Pi Pico W project that reads the onboard temperature sensor and serv
 - Hosts an HTTP server on port 80 that displays live temperature and free memory
 - Auto-refreshes the web page every 2 seconds using JavaScript `fetch`
 - Exposes a `/temp` endpoint returning raw CSV data (`temperature,free_memory`)
-- Blinks the onboard LED based on whether the current temperature (to 2 decimal places) is even or odd
+- Blinks the onboard LED at 2s during startup, solid on when connected and serving, fast 0.5s blink on error
 - Tries two Wi-Fi networks in sequence (e.g. office + home) and falls back to the second if the first fails
 - Prints temperature, even/odd status, free memory, and IP address over USB serial
 
@@ -40,7 +40,7 @@ cmake ..
 make
 ```
 
-Flash the resulting `hello_world.uf2` to your Pico W by holding BOOTSEL while connecting via USB, then drag-and-drop the file onto the mounted drive.
+Flash the resulting `pico_w_temp_monitor.uf2` to your Pico W by holding BOOTSEL while connecting via USB, then drag-and-drop the file onto the mounted drive.
 
 ## Usage
 
